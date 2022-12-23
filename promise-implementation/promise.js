@@ -9,30 +9,43 @@ class MyPromise {
     #state = states.PENDING;
     #thenCallbacks = [];
     #catchCallbacks = [];
+    #acceptedBind = this.#accepted.bind(this)
+    #rejectedBind = this.#rejected.bind(this)
     #value;
 
     constructor(cb) {
         try {
-            cb(this.#accepted, this.#rejected)
+            cb(this.#acceptedBind, this.#rejectedBind)
         } catch (e) {
             this.#rejected(e);
         }
     }
 
-    cb() {
-
-    }
-
     #accepted(data) {
 
-        this.#state = states.RESOLVED;
-        this.#value = data;
 
-        if (this.#state !== "pending") {
-            return;
-        }
+        
+        queueMicrotask(() => {
 
-        this.#runnCallbacks();
+            console.log("here1",data instanceof MyPromise);
+
+            if (this.#state !== "pending") {
+                return;
+            }
+
+            if (data instanceof MyPromise) {
+                data.then(this.#acceptedBind, this.#rejectedBind)
+                return;
+            }
+
+            this.#state = states.RESOLVED;
+            this.#value = data;
+
+            this.#runnCallbacks();
+
+        })
+
+
     }
 
     #runnCallbacks() {
@@ -50,34 +63,96 @@ class MyPromise {
 
     #rejected(data) {
 
-        if (this.#state !== "pending") {
-            return;
-        }
+        queueMicrotask(() => {
 
-        this.#state = states.REJECTED;
-        this.#value = data;
+            if (this.#state !== "pending") {
+                return;
+            }
 
-        this.#runnCallbacks();
+            if (data instanceof MyPromise) {
+                data.then(this.#acceptedBind, this.#rejectedBind)
+                return;
+            }
+
+            if(this.#catchCallbacks.length===0){
+                throw new UnCaughtPromiseException(data);
+            }
+
+            this.#state = states.REJECTED;
+            this.#value = data;
+
+            this.#runnCallbacks();
+
+        })
+
+
     }
 
     then(thencb, catchCb) {
-        if (thencb !== null) {
+
+        return new MyPromise((resolve, reject) => {
+
+            this.#thenCallbacks.push((result) => {
+
+                if (thencb == null) {
+                    resolve(result);
+                    return;
+                }
+
+                try {
+                    resolve(thencb(result))
+                } catch (err) {
+                    reject(err);
+                }
+
+            })
+
+            this.#catchCallbacks.push((result) => {
+
+                if (catchCb == null) {
+                    reject(result);
+                    return;
+                }
+
+                try {
+                    resolve(catchCb(result))
+                } catch (err) {
+                    reject(err);
+                }
+
+            })
+
+            this.#runnCallbacks();
+
+        })
+
+
+
+        /*if (thencb !== null) {
             this.#thenCallbacks.push(thencb);
         }
 
         if (this.catchCb) {
             this.#catchCallbacks.push(catchCb);
-        }
+        }*/
 
-        this.#runnCallbacks();
+        // this.#runnCallbacks();
 
     }
 
     catch(cb) {
-        this.then(null, cb);
+        return this.then(null, cb);
     }
 
-    finally() {
+    finally(cb) {
+
+        return this.then(result=>{
+            cb();
+            return result;
+        },result=>{
+            cb();
+            return result;
+        })
 
     }
 
@@ -86,16 +161,48 @@ class MyPromise {
 
 module.exports = MyPromise;
 
-let p = new Promise((resolve, reject) => {
+class UnCaughtPromiseException extends Error{
+
+    constructor(error){
+        super(error)
+        this.stack = `(in promise) ${error.stack}`
+    }
+}
+
+let p = new MyPromise((resolve, reject) => {
 
     resolve('naman');
 
+});
 
-})
+// let p1 = new Promise((resolve, reject) => {
+
+//     resolve('naman');
+
+// });
 
 console.log(p);
-
-p.then(data => {
+// console.log(p1,"original");
+let ans = p.then(data => {
     console.log(data);
+    //const xx=y;
+    return "returned value"
+}).then(data=>{
+    console.log(data);
+}).catch(e=>{
+    console.log(e,"lloll");
 })
+
+setTimeout(()=>{
+    console.log(ans);
+},3000)
+
+/*
+
+    return new Promise((resolve,reject)=>{
+
+
+    })
+
+*/
 
