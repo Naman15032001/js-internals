@@ -24,10 +24,10 @@ class MyPromise {
     #accepted(data) {
 
 
-        
+
         queueMicrotask(() => {
 
-            console.log("here1",data instanceof MyPromise);
+            //console.log("here1",data instanceof MyPromise);
 
             if (this.#state !== "pending") {
                 return;
@@ -74,7 +74,7 @@ class MyPromise {
                 return;
             }
 
-            if(this.#catchCallbacks.length===0){
+            if (this.#catchCallbacks.length === 0) {
                 throw new UnCaughtPromiseException(data);
             }
 
@@ -146,13 +146,148 @@ class MyPromise {
 
     finally(cb) {
 
-        return this.then(result=>{
+        return this.then(result => {
             cb();
             return result;
-        },result=>{
+        }, result => {
             cb();
-            return result;
+
+            throw result;
         })
+
+    }
+
+    static resolve(result) {
+        return new MyPromise((resolve, reject) => {
+            resolve(result)
+        })
+    }
+
+    static reject(result) {
+        return new MyPromise((resolve, reject) => {
+            reject(result)
+        })
+    }
+
+    static all(promises) {
+
+        return new MyPromise((resolve,reject)=>{
+
+            let result = [];
+
+            let resolvePromisesidx = 0;
+    
+            for (let i = 0; i < promises.length; i++) {
+    
+                
+    
+                promises[i].then((res) => {
+    
+                    resolvePromisesidx++;
+                    result[i] = res;
+    
+                    if (resolvePromisesidx === promises.length) {
+                        resolve(result)
+                    }
+    
+    
+                }).catch(e => {
+                   reject(e)
+                })
+    
+            }
+                
+        })
+
+    }
+
+    static allSettled(promises){
+
+        return new MyPromise((resolve,reject)=>{
+
+            let result = [];
+
+            let resolvePromisesidx = 0;
+    
+            for (let i = 0; i < promises.length; i++) {
+    
+                
+    
+                promises[i].then((res) => {
+    
+                    result[i] = {
+                        status : 'fulfilled',
+                        value : res
+                    };
+    
+                    
+    
+    
+                }).catch(e => {
+                   
+                    result[i] = {
+                        status : 'rejected',
+                        reason : e
+                    };
+                }).finally(()=>{
+                    resolvePromisesidx++;
+                    if(resolvePromisesidx===promises.length) resolve(result);
+
+                })
+
+                
+    
+            }
+                
+        })
+    }
+
+    static race(promises){
+
+        return new MyPromise((resolve,reject)=>{
+
+            for(let i=0;i<promises.length;i++){
+                promises[i].then((result)=>{
+                    resolve(result)
+                }).catch(e=>reject(e))
+            }
+
+            
+        })
+    }
+
+    static any(promises){
+
+        let errors=[]
+
+        let rejectPromises=0;
+
+        return new MyPromise((resolve,reject)=>{
+
+            
+    
+            for (let i = 0; i < promises.length; i++) {
+    
+                
+    
+                promises[i].then((res) => {
+    
+                    resolve(res)
+                   
+    
+                }).catch(e => {
+                   rejectPromises++;
+                   errors[i]=e;
+                   if(rejectPromises===promises.length){
+                    reject(new AggregateError(errors,"all promises are rejected"))
+                   }
+                })
+    
+            }
+                
+        })
+
+
 
     }
 
@@ -161,15 +296,15 @@ class MyPromise {
 
 module.exports = MyPromise;
 
-class UnCaughtPromiseException extends Error{
+class UnCaughtPromiseException extends Error {
 
-    constructor(error){
+    constructor(error) {
         super(error)
         this.stack = `(in promise) ${error.stack}`
     }
 }
 
-let p = new MyPromise((resolve, reject) => {
+/*let p = new MyPromise((resolve, reject) => {
 
     resolve('naman');
 
@@ -186,7 +321,9 @@ console.log(p);
 let ans = p.then(data => {
     console.log(data);
     //const xx=y;
-    return "returned value"
+    return new MyPromise((resolve)=>{
+        resolve("returned")
+    })
 }).then(data=>{
     console.log(data);
 }).catch(e=>{
@@ -205,4 +342,21 @@ setTimeout(()=>{
     })
 
 */
+
+/*let x =Promise.resolve('abc');
+console.log(x);*/
+
+let p1 = new Promise((resolve) => {
+    resolve("hello")
+})
+
+let p2 = new Promise((resolve) => {
+    resolve("bye")
+})
+
+let ans = Promise.allSettled([p1, p2]);
+
+setTimeout(() => {
+    console.log(ans);
+}, 2000)
 
