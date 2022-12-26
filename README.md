@@ -7,4 +7,5 @@
 <li><h2>Deep Clone an object </h2> </li>
 <li><h2>Promise class implementation </h2> </li>
 <li><h2>Bind pollyfill  </h2> </li>
+<li><h2>Array pollyfill map filter reduce  </h2> </li>
 </ul>
